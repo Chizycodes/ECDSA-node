@@ -5,23 +5,25 @@ import { keccak256 } from 'ethereum-cryptography/keccak';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import { toHex, utf8ToBytes } from 'ethereum-cryptography/utils';
 
-function Transfer({ address, setBalance, privateKey, publicKey }) {
+function Transfer({ setBalance, privateKey, publicKey }) {
 	const [sendAmount, setSendAmount] = useState('');
 	const [recipient, setRecipient] = useState('');
+	const [loading, setLoading] = useState(false);
 
 	const setValue = (setter) => (evt) => setter(evt.target.value);
 
 	async function transfer(evt) {
 		evt.preventDefault();
+		setLoading(true);
 		const payload = {
 			sender: publicKey,
 			amount: parseInt(sendAmount),
 			recipient,
 		};
-    
-		const payloadHash = sha256(utf8ToBytes(JSON.stringify(payload)));
 
-    const signature = await secp.sign(messageHash, privateKey);
+		const payloadHash = toHex(sha256(utf8ToBytes(JSON.stringify(payload))));
+
+		const signature = await secp.sign(payloadHash, privateKey);
 
 		try {
 			const {
@@ -29,10 +31,12 @@ function Transfer({ address, setBalance, privateKey, publicKey }) {
 			} = await server.post(`send`, {
 				payload,
 				payloadHash,
-        signature,
+				signature: toHex(signature),
 			});
 			setBalance(balance);
+			setLoading(false);
 		} catch (ex) {
+      setLoading(false);
 			alert(ex.response.data.message);
 		}
 	}
@@ -55,7 +59,7 @@ function Transfer({ address, setBalance, privateKey, publicKey }) {
 				></input>
 			</label>
 
-			<input type="submit" className="button" value="Transfer" />
+			<input type="submit" className="button" value={loading ? 'sending...' : 'Transfer'} />
 		</form>
 	);
 }
